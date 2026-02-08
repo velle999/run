@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Commit Streak - An endless runner game for developers. Keep your GitHub streak alive!">
+    <meta name="theme-color" content="#0d1117">
+    <title>Commit Streak - Endless Runner Game</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=VT323&family=Press+Start+2P&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="gameContainer">
+        <canvas id="gameCanvas" width="900" height="500"></canvas>
+        <div class="scanline"></div>
+        <div class="vignette"></div>
+        
+        <!-- UI Overlays -->
+        <div id="ui">
+            <div class="ui-panel">
+                <div id="score" class="stat">
+                    <span class="label">SCORE</span>
+                    <span class="value">0</span>
+                </div>
+            </div>
+            <div class="ui-panel">
+                <div id="streak" class="stat">
+                    <span class="label">STREAK</span>
+                    <span class="value">0</span>
+                </div>
+            </div>
+            <div class="ui-panel">
+                <div id="highScore" class="stat">
+                    <span class="label">BEST</span>
+                    <span class="value">0</span>
+                </div>
+            </div>
+        </div>
+
+        <div id="lives">
+            <span class="life active">♥</span>
+            <span class="life active">♥</span>
+            <span class="life active">♥</span>
+        </div>
+
+        <div id="powerupIndicator" class="hidden">
+            <div class="powerup-icon"></div>
+            <div class="powerup-timer"></div>
+        </div>
+
+        <div id="comboIndicator" class="hidden">
+            <span class="combo-text">COMBO</span>
+            <span class="combo-value">x0</span>
+        </div>
+
+        <!-- Start Screen -->
+        <div id="startScreen" class="screen">
+            <div class="screen-content">
+                <h1 class="title">
+                    <span class="title-line">COMMIT</span>
+                    <span class="title-line">STREAK</span>
+                </h1>
+                <div class="subtitle">KEEP YOUR STREAK ALIVE</div>
+                
+                <div class="controls-section">
+                    <div class="control-group">
+                        <div class="key-icon">↑</div>
+                        <div class="key-icon">SPACE</div>
+                        <span class="control-label">JUMP</span>
+                    </div>
+                    <div class="control-group">
+                        <div class="key-icon">↓</div>
+                        <span class="control-label">SLIDE</span>
+                    </div>
+                </div>
+
+                <button id="startBtn" class="btn-primary">
+                    <span class="btn-text">START GAME</span>
+                    <span class="btn-glow"></span>
+                </button>
+
+                <div class="features">
+                    <div class="feature">
+                        <span class="feature-icon">⚡</span>
+                        <span>POWER-UPS</span>
+                    </div>
+                    <div class="feature">
+                        <span class="feature-icon">🏆</span>
+                        <span>ACHIEVEMENTS</span>
+                    </div>
+                    <div class="feature">
+                        <span class="feature-icon">🎮</span>
+                        <span>COMBO SYSTEM</span>
+                    </div>
+                </div>
+
+                <button id="achievementsBtn" class="btn-secondary">VIEW ACHIEVEMENTS</button>
+                <button id="settingsBtn" class="btn-secondary">SETTINGS</button>
+            </div>
+        </div>
+
+        <!-- Game Over Screen -->
+        <div id="gameOverScreen" class="screen hidden">
+            <div class="screen-content">
+                <h1 class="title game-over-title">
+                    <span class="title-line">STREAK</span>
+                    <span class="title-line">BROKEN</span>
+                </h1>
+                
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-label">FINAL SCORE</div>
+                        <div id="finalScore" class="stat-value">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">MAX STREAK</div>
+                        <div id="finalStreak" class="stat-value">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">BEST COMBO</div>
+                        <div id="finalCombo" class="stat-value">x0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">COMMITS</div>
+                        <div id="finalCommits" class="stat-value">0</div>
+                    </div>
+                </div>
+
+                <div id="newAchievements" class="achievements-unlocked hidden">
+                    <div class="achievement-header">🏆 NEW ACHIEVEMENTS!</div>
+                    <div id="achievementsList"></div>
+                </div>
+
+                <div class="button-group">
+                    <button id="restartBtn" class="btn-primary">
+                        <span class="btn-text">TRY AGAIN</span>
+                        <span class="btn-glow"></span>
+                    </button>
+                    <button id="menuBtn" class="btn-secondary">MENU</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Achievements Screen -->
+        <div id="achievementsScreen" class="screen hidden">
+            <div class="screen-content">
+                <h2 class="screen-title">ACHIEVEMENTS</h2>
+                <div id="achievementsGrid" class="achievements-grid"></div>
+                <button id="closeAchievementsBtn" class="btn-secondary">BACK</button>
+            </div>
+        </div>
+
+        <!-- Settings Screen -->
+        <div id="settingsScreen" class="screen hidden">
+            <div class="screen-content">
+                <h2 class="screen-title">SETTINGS</h2>
+                <div class="settings-grid">
+                    <div class="setting-item">
+                        <label for="soundToggle">SOUND EFFECTS</label>
+                        <input type="checkbox" id="soundToggle" checked>
+                    </div>
+                    <div class="setting-item">
+                        <label for="musicToggle">MUSIC</label>
+                        <input type="checkbox" id="musicToggle" checked>
+                    </div>
+                    <div class="setting-item">
+                        <label for="particlesToggle">PARTICLES</label>
+                        <input type="checkbox" id="particlesToggle" checked>
+                    </div>
+                    <div class="setting-item">
+                        <label for="screenShakeToggle">SCREEN SHAKE</label>
+                        <input type="checkbox" id="screenShakeToggle" checked>
+                    </div>
+                </div>
+                <button id="resetProgressBtn" class="btn-danger">RESET PROGRESS</button>
+                <button id="closeSettingsBtn" class="btn-secondary">BACK</button>
+            </div>
+        </div>
+
+        <!-- Pause Overlay -->
+        <div id="pauseOverlay" class="hidden">
+            <div class="pause-content">
+                <h2>PAUSED</h2>
+                <p>Press ESC or P to resume</p>
+                <button id="resumeBtn" class="btn-primary">RESUME</button>
+                <button id="quitBtn" class="btn-secondary">QUIT TO MENU</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="game.js"></script>
+</body>
+</html>
