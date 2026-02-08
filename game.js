@@ -155,6 +155,15 @@ class GameEngine {
         // Update player
         this.player.update();
         
+        // Add player trail particles
+        if (this.settings.particles && this.frameCount % 3 === 0) {
+            this.particleSystem.createTrail(
+                this.player.x + this.player.width / 2,
+                this.player.y + this.player.height / 2,
+                this.player.invincible ? '#bc8cff' : 'rgba(57, 211, 83, 0.6)'
+            );
+        }
+        
         // Check for active power-up effects
         this.powerupManager.updateEffects(this.player, this.stats);
         
@@ -247,12 +256,11 @@ class GameEngine {
         this.playSound('collect');
         
         if (this.settings.particles) {
-            this.particleSystem.createBurst(
-                this.player.x + this.player.width / 2,
-                this.player.y + this.player.height / 2,
-                '#39d353',
-                8
-            );
+            const x = this.player.x + this.player.width / 2;
+            const y = this.player.y + this.player.height / 2;
+            
+            this.particleSystem.createBurst(x, y, '#39d353', 8);
+            this.particleSystem.createSparkle(x, y, '#4ae168');
         }
     }
 
@@ -321,11 +329,11 @@ class GameEngine {
         this.ctx.fillStyle = '#0d1117';
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
         
-        // Draw game elements
+        // Draw game elements (pass frameCount for animations)
         this.background.draw();
-        this.collectibleManager.draw(this.ctx);
-        this.powerupManager.draw(this.ctx);
-        this.obstacleManager.draw(this.ctx);
+        this.collectibleManager.draw(this.ctx, this.frameCount);
+        this.powerupManager.draw(this.ctx, this.frameCount);
+        this.obstacleManager.draw(this.ctx, this.frameCount);
         this.player.draw(this.ctx, this.frameCount);
         
         if (this.settings.particles) {
@@ -562,34 +570,192 @@ class Player {
     draw(ctx, frameCount) {
         ctx.save();
         
-        // Invincibility flashing
-        if (this.invincible && Math.floor(frameCount / 5) % 2 === 0) {
-            ctx.globalAlpha = 0.5;
+        // Invincibility shield effect
+        if (this.invincible) {
+            const pulseSize = 2 + Math.sin(frameCount * 0.3) * 1;
+            ctx.fillStyle = 'rgba(188, 140, 255, 0.3)';
+            ctx.fillRect(
+                this.x - pulseSize, 
+                this.y - pulseSize, 
+                this.width + pulseSize * 2, 
+                this.height + pulseSize * 2
+            );
+            
+            // Invincibility flashing
+            if (Math.floor(frameCount / 5) % 2 === 0) {
+                ctx.globalAlpha = 0.7;
+            }
         }
         
-        ctx.fillStyle = '#39d353';
+        // Motion blur trail when moving fast
+        if (!this.jumping && !this.sliding) {
+            ctx.fillStyle = 'rgba(57, 211, 83, 0.15)';
+            ctx.fillRect(this.x - 8, this.y + 4, 8, this.height - 8);
+            ctx.fillRect(this.x - 4, this.y + 8, 4, this.height - 16);
+        }
+        
+        const colors = {
+            primary: '#39d353',
+            secondary: '#2ea043',
+            dark: '#0d1117',
+            highlight: '#4ae168',
+            eye: '#58a6ff'
+        };
         
         if (this.sliding) {
-            // Sliding pose
-            ctx.fillRect(this.x, this.y + 16, 32, 16);
-            ctx.fillRect(this.x + 8, this.y + 8, 16, 8);
+            this.drawSliding(ctx, colors, frameCount);
+        } else if (this.jumping) {
+            this.drawJumping(ctx, colors, frameCount);
         } else {
-            // Head
-            ctx.fillRect(this.x + 8, this.y, 16, 16);
-            // Body
-            ctx.fillRect(this.x + 8, this.y + 16, 16, 12);
-            // Legs (animated)
-            const legOffset = Math.floor(frameCount / 10) % 2 * 4;
-            ctx.fillRect(this.x + 8, this.y + 28, 6, 4);
-            ctx.fillRect(this.x + 18, this.y + 28, 6, 4);
-            
-            // Eyes
-            ctx.fillStyle = '#0d1117';
-            ctx.fillRect(this.x + 10, this.y + 6, 4, 4);
-            ctx.fillRect(this.x + 18, this.y + 6, 4, 4);
+            this.drawRunning(ctx, colors, frameCount);
         }
         
         ctx.restore();
+    }
+    
+    drawRunning(ctx, colors, frameCount) {
+        const runCycle = Math.floor(frameCount / 6) % 4;
+        
+        // Shadow
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+        ctx.fillRect(this.x + 4, this.y + 30, 24, 4);
+        
+        // Body - slightly bobbing
+        const bob = Math.sin(frameCount * 0.3) * 1;
+        
+        // Main body
+        ctx.fillStyle = colors.primary;
+        ctx.fillRect(this.x + 10, this.y + 8 + bob, 12, 16);
+        
+        // Head with antenna
+        ctx.fillRect(this.x + 8, this.y + 2 + bob, 16, 10);
+        ctx.fillRect(this.x + 14, this.y + bob, 4, 3); // Antenna
+        
+        // Arms (animated)
+        const armSwing = runCycle < 2 ? -2 : 2;
+        ctx.fillRect(this.x + 6, this.y + 12 + bob + armSwing, 4, 8);
+        ctx.fillRect(this.x + 22, this.y + 12 + bob - armSwing, 4, 8);
+        
+        // Legs (running animation)
+        if (runCycle === 0) {
+            ctx.fillRect(this.x + 10, this.y + 24 + bob, 5, 6);
+            ctx.fillRect(this.x + 17, this.y + 26 + bob, 5, 4);
+        } else if (runCycle === 1) {
+            ctx.fillRect(this.x + 10, this.y + 26 + bob, 5, 4);
+            ctx.fillRect(this.x + 17, this.y + 24 + bob, 5, 6);
+        } else if (runCycle === 2) {
+            ctx.fillRect(this.x + 10, this.y + 25 + bob, 5, 5);
+            ctx.fillRect(this.x + 17, this.y + 25 + bob, 5, 5);
+        } else {
+            ctx.fillRect(this.x + 10, this.y + 24 + bob, 5, 6);
+            ctx.fillRect(this.x + 17, this.y + 26 + bob, 5, 4);
+        }
+        
+        // Eyes (animated blinking)
+        const blink = frameCount % 120 < 3;
+        if (!blink) {
+            ctx.fillStyle = colors.eye;
+            ctx.fillRect(this.x + 10, this.y + 5 + bob, 3, 3);
+            ctx.fillRect(this.x + 19, this.y + 5 + bob, 3, 3);
+            
+            // Eye shine
+            ctx.fillStyle = colors.highlight;
+            ctx.fillRect(this.x + 11, this.y + 5 + bob, 1, 1);
+            ctx.fillRect(this.x + 20, this.y + 5 + bob, 1, 1);
+        } else {
+            ctx.fillStyle = colors.dark;
+            ctx.fillRect(this.x + 10, this.y + 6 + bob, 3, 1);
+            ctx.fillRect(this.x + 19, this.y + 6 + bob, 3, 1);
+        }
+        
+        // Mouth
+        ctx.fillStyle = colors.dark;
+        ctx.fillRect(this.x + 14, this.y + 9 + bob, 4, 1);
+        
+        // Body details
+        ctx.fillStyle = colors.secondary;
+        ctx.fillRect(this.x + 11, this.y + 10 + bob, 2, 2);
+        ctx.fillRect(this.x + 19, this.y + 10 + bob, 2, 2);
+        ctx.fillRect(this.x + 15, this.y + 15 + bob, 2, 2);
+    }
+    
+    drawJumping(ctx, colors, frameCount) {
+        // Shadow (smaller when in air)
+        const shadowSize = 20 - (this.groundY - this.y) / 10;
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+        ctx.fillRect(this.x + (32 - shadowSize) / 2, this.groundY + 30, shadowSize, 3);
+        
+        // Main body
+        ctx.fillStyle = colors.primary;
+        ctx.fillRect(this.x + 10, this.y + 8, 12, 16);
+        
+        // Head
+        ctx.fillRect(this.x + 8, this.y + 2, 16, 10);
+        ctx.fillRect(this.x + 14, this.y, 4, 3); // Antenna
+        
+        // Arms (up position)
+        ctx.fillRect(this.x + 4, this.y + 8, 6, 6);
+        ctx.fillRect(this.x + 22, this.y + 8, 6, 6);
+        
+        // Legs (tucked)
+        ctx.fillRect(this.x + 10, this.y + 24, 5, 4);
+        ctx.fillRect(this.x + 17, this.y + 24, 5, 4);
+        
+        // Eyes (wide open)
+        ctx.fillStyle = colors.eye;
+        ctx.fillRect(this.x + 10, this.y + 5, 3, 4);
+        ctx.fillRect(this.x + 19, this.y + 5, 3, 4);
+        
+        // Eye shine
+        ctx.fillStyle = colors.highlight;
+        ctx.fillRect(this.x + 11, this.y + 5, 1, 1);
+        ctx.fillRect(this.x + 20, this.y + 5, 1, 1);
+        
+        // Excited mouth
+        ctx.fillStyle = colors.dark;
+        ctx.fillRect(this.x + 13, this.y + 9, 6, 2);
+        
+        // Motion lines (speed effect)
+        ctx.fillStyle = 'rgba(57, 211, 83, 0.4)';
+        ctx.fillRect(this.x - 4, this.y + 10, 3, 2);
+        ctx.fillRect(this.x - 7, this.y + 14, 4, 2);
+        ctx.fillRect(this.x - 5, this.y + 18, 3, 2);
+    }
+    
+    drawSliding(ctx, colors, frameCount) {
+        // Shadow
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+        ctx.fillRect(this.x, this.y + 14, 32, 4);
+        
+        // Main body (horizontal)
+        ctx.fillStyle = colors.primary;
+        ctx.fillRect(this.x, this.y + 18, 28, 12);
+        
+        // Head (front)
+        ctx.fillRect(this.x + 24, this.y + 16, 8, 10);
+        
+        // Arms (stretched forward)
+        ctx.fillRect(this.x + 28, this.y + 20, 4, 4);
+        
+        // Legs (stretched back)
+        ctx.fillRect(this.x - 2, this.y + 20, 6, 4);
+        ctx.fillRect(this.x + 2, this.y + 24, 6, 3);
+        
+        // Eyes (determined look)
+        ctx.fillStyle = colors.eye;
+        ctx.fillRect(this.x + 26, this.y + 18, 2, 2);
+        ctx.fillRect(this.x + 29, this.y + 18, 2, 2);
+        
+        // Dust cloud behind
+        const dustOffset = frameCount % 10;
+        ctx.fillStyle = `rgba(57, 211, 83, ${0.3 - dustOffset / 30})`;
+        ctx.fillRect(this.x - 10 - dustOffset, this.y + 24, 6, 4);
+        ctx.fillRect(this.x - 16 - dustOffset * 1.5, this.y + 26, 4, 3);
+        
+        // Speed lines
+        ctx.fillStyle = 'rgba(57, 211, 83, 0.5)';
+        ctx.fillRect(this.x - 8, this.y + 20, 6, 1);
+        ctx.fillRect(this.x - 12, this.y + 23, 8, 1);
     }
 
     getBounds() {
@@ -643,29 +809,154 @@ class ObstacleManager {
         });
     }
 
-    draw(ctx) {
+    draw(ctx, frameCount) {
         this.obstacles.forEach(obs => {
-            ctx.fillStyle = obs.color;
-            
-            if (obs.type === 'bug') {
-                ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
-                ctx.fillStyle = '#0d1117';
-                ctx.fillRect(obs.x + 8, obs.y + 4, 4, 4);
-                ctx.fillRect(obs.x + 16, obs.y + 4, 4, 4);
-            } else if (obs.type === 'conflict') {
-                for (let i = 0; i < 3; i++) {
-                    ctx.fillRect(obs.x, obs.y + i * 12, obs.width, 8);
-                }
-            } else if (obs.type === 'spike') {
-                // Draw triangular spike
-                ctx.beginPath();
-                ctx.moveTo(obs.x, obs.y + obs.height);
-                ctx.lineTo(obs.x + obs.width / 2, obs.y);
-                ctx.lineTo(obs.x + obs.width, obs.y + obs.height);
-                ctx.closePath();
-                ctx.fill();
-            }
+            this.drawObstacle(ctx, obs, frameCount);
         });
+    }
+    
+    drawObstacle(ctx, obs, frameCount) {
+        ctx.save();
+        
+        if (obs.type === 'bug') {
+            this.drawBug(ctx, obs, frameCount);
+        } else if (obs.type === 'conflict') {
+            this.drawConflict(ctx, obs, frameCount);
+        } else if (obs.type === 'spike') {
+            this.drawSpike(ctx, obs, frameCount);
+        }
+        
+        ctx.restore();
+    }
+    
+    drawBug(ctx, obs, frameCount) {
+        const wiggle = Math.sin(frameCount * 0.2 + obs.x * 0.1) * 2;
+        const legMove = Math.floor(frameCount / 8) % 2;
+        
+        // Shadow
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+        ctx.fillRect(obs.x + 4, obs.y + obs.height + 1, obs.width - 8, 3);
+        
+        // Body segments
+        ctx.fillStyle = '#f85149';
+        ctx.fillRect(obs.x + 8, obs.y + 4, 16, 12); // Main body
+        ctx.fillRect(obs.x + 10, obs.y + 16, 12, 8); // Lower segment
+        
+        // Head
+        ctx.fillRect(obs.x + 6, obs.y + wiggle, 20, 8);
+        
+        // Antennae
+        ctx.fillStyle = '#d73a49';
+        ctx.fillRect(obs.x + 8, obs.y - 4 + wiggle, 2, 6);
+        ctx.fillRect(obs.x + 22, obs.y - 4 + wiggle, 2, 6);
+        ctx.fillRect(obs.x + 6, obs.y - 4 + wiggle, 4, 2);
+        ctx.fillRect(obs.x + 22, obs.y - 4 + wiggle, 4, 2);
+        
+        // Eyes (menacing)
+        ctx.fillStyle = '#0d1117';
+        ctx.fillRect(obs.x + 10, obs.y + 2 + wiggle, 4, 3);
+        ctx.fillRect(obs.x + 18, obs.y + 2 + wiggle, 4, 3);
+        
+        // Legs (animated)
+        ctx.fillStyle = '#d73a49';
+        const legY1 = legMove === 0 ? 2 : -1;
+        const legY2 = legMove === 0 ? -1 : 2;
+        
+        // Left legs
+        ctx.fillRect(obs.x + 2, obs.y + 12 + legY1, 6, 2);
+        ctx.fillRect(obs.x + 4, obs.y + 18 + legY2, 6, 2);
+        
+        // Right legs
+        ctx.fillRect(obs.x + 24, obs.y + 12 + legY2, 6, 2);
+        ctx.fillRect(obs.x + 22, obs.y + 18 + legY1, 6, 2);
+        
+        // Mandibles
+        ctx.fillStyle = '#0d1117';
+        ctx.fillRect(obs.x + 4, obs.y + 6 + wiggle, 2, 2);
+        ctx.fillRect(obs.x + 26, obs.y + 6 + wiggle, 2, 2);
+    }
+    
+    drawConflict(ctx, obs, frameCount) {
+        const pulse = Math.sin(frameCount * 0.15) * 2;
+        const shake = Math.sin(frameCount * 0.5) * 1;
+        
+        // Warning glow
+        ctx.fillStyle = 'rgba(248, 81, 73, 0.3)';
+        ctx.fillRect(obs.x - 4, obs.y - 4, obs.width + 8, obs.height + 8);
+        
+        // Main conflict bars
+        ctx.fillStyle = '#f85149';
+        for (let i = 0; i < 3; i++) {
+            const barY = obs.y + i * 12;
+            ctx.fillRect(obs.x + shake, barY, obs.width, 8);
+            
+            // Danger stripes
+            ctx.fillStyle = '#ff6b6b';
+            ctx.fillRect(obs.x + 4 + shake, barY + 1, 4, 2);
+            ctx.fillRect(obs.x + 12 + shake, barY + 1, 4, 2);
+            ctx.fillRect(obs.x + 20 + shake, barY + 1, 4, 2);
+            ctx.fillStyle = '#f85149';
+        }
+        
+        // Lightning bolts between bars
+        ctx.fillStyle = '#ffeb3b';
+        const boltOffset = Math.floor(frameCount / 4) % 3;
+        
+        if (boltOffset === 0) {
+            ctx.fillRect(obs.x + 10, obs.y + 8, 2, 4);
+            ctx.fillRect(obs.x + 8, obs.y + 12, 2, 4);
+            ctx.fillRect(obs.x + 20, obs.y + 20, 2, 4);
+            ctx.fillRect(obs.x + 22, obs.y + 24, 2, 4);
+        } else if (boltOffset === 1) {
+            ctx.fillRect(obs.x + 16, obs.y + 8, 2, 4);
+            ctx.fillRect(obs.x + 18, obs.y + 12, 2, 4);
+            ctx.fillRect(obs.x + 14, obs.y + 20, 2, 4);
+            ctx.fillRect(obs.x + 12, obs.y + 24, 2, 4);
+        }
+        
+        // Exclamation marks
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(obs.x + 14, obs.y - 8 + pulse, 4, 6);
+        ctx.fillRect(obs.x + 14, obs.y - 1 + pulse, 4, 2);
+    }
+    
+    drawSpike(ctx, obs, frameCount) {
+        const glow = Math.sin(frameCount * 0.1) * 0.2 + 0.8;
+        
+        // Danger glow
+        ctx.fillStyle = `rgba(255, 107, 107, ${glow * 0.4})`;
+        ctx.fillRect(obs.x - 4, obs.y - 4, obs.width + 8, obs.height + 8);
+        
+        // Main spike (triangle)
+        ctx.fillStyle = '#ff6b6b';
+        ctx.beginPath();
+        ctx.moveTo(obs.x, obs.y + obs.height);
+        ctx.lineTo(obs.x + obs.width / 2, obs.y);
+        ctx.lineTo(obs.x + obs.width, obs.y + obs.height);
+        ctx.closePath();
+        ctx.fill();
+        
+        // Inner highlight
+        ctx.fillStyle = '#ff8a8a';
+        ctx.beginPath();
+        ctx.moveTo(obs.x + 6, obs.y + obs.height - 6);
+        ctx.lineTo(obs.x + obs.width / 2, obs.y + 8);
+        ctx.lineTo(obs.x + obs.width - 6, obs.y + obs.height - 6);
+        ctx.closePath();
+        ctx.fill();
+        
+        // Dark core
+        ctx.fillStyle = '#d73a49';
+        ctx.beginPath();
+        ctx.moveTo(obs.x + obs.width / 2 - 4, obs.y + obs.height - 12);
+        ctx.lineTo(obs.x + obs.width / 2, obs.y + 12);
+        ctx.lineTo(obs.x + obs.width / 2 + 4, obs.y + obs.height - 12);
+        ctx.closePath();
+        ctx.fill();
+        
+        // Base
+        ctx.fillStyle = '#0d1117';
+        ctx.fillRect(obs.x, obs.y + obs.height, obs.width, 4);
     }
 
     checkCollision(player) {
@@ -729,24 +1020,75 @@ class CollectibleManager {
         });
     }
 
-    draw(ctx) {
+    draw(ctx, frameCount) {
         this.collectibles.forEach(col => {
-            const drawY = col.y + col.floatOffset;
-            
-            // Glow effect
-            ctx.fillStyle = 'rgba(57, 211, 83, 0.3)';
-            ctx.fillRect(col.x - 2, drawY - 2, col.width + 4, col.height + 4);
-            
-            // Main checkmark
-            ctx.fillStyle = '#39d353';
-            ctx.fillRect(col.x, drawY, col.width, col.height);
-            ctx.fillStyle = '#0d1117';
-            
-            // Checkmark shape
-            ctx.fillRect(col.x + 4, drawY + 12, 4, 8);
-            ctx.fillRect(col.x + 8, drawY + 8, 4, 4);
-            ctx.fillRect(col.x + 12, drawY + 4, 4, 8);
+            this.drawCollectible(ctx, col, frameCount);
         });
+    }
+    
+    drawCollectible(ctx, col, frameCount) {
+        const drawY = col.y + col.floatOffset;
+        const rotation = (frameCount * 0.05) % (Math.PI * 2);
+        const scale = 1 + Math.sin(frameCount * 0.1) * 0.1;
+        
+        ctx.save();
+        
+        // Outer glow (pulsing)
+        const glowSize = 8 + Math.sin(frameCount * 0.15) * 3;
+        const glowAlpha = 0.3 + Math.sin(frameCount * 0.15) * 0.1;
+        ctx.fillStyle = `rgba(57, 211, 83, ${glowAlpha})`;
+        ctx.fillRect(
+            col.x - glowSize / 2, 
+            drawY - glowSize / 2, 
+            col.width + glowSize, 
+            col.height + glowSize
+        );
+        
+        // Inner glow
+        ctx.fillStyle = 'rgba(57, 211, 83, 0.5)';
+        ctx.fillRect(col.x - 2, drawY - 2, col.width + 4, col.height + 4);
+        
+        // Rotate around center
+        const centerX = col.x + col.width / 2;
+        const centerY = drawY + col.height / 2;
+        
+        ctx.translate(centerX, centerY);
+        ctx.rotate(rotation);
+        ctx.scale(scale, scale);
+        ctx.translate(-centerX, -centerY);
+        
+        // Main checkmark box
+        ctx.fillStyle = '#39d353';
+        ctx.fillRect(col.x, drawY, col.width, col.height);
+        
+        // Border highlight
+        ctx.fillStyle = '#4ae168';
+        ctx.fillRect(col.x, drawY, col.width, 2);
+        ctx.fillRect(col.x, drawY, 2, col.height);
+        
+        // Checkmark shape
+        ctx.fillStyle = '#0d1117';
+        ctx.fillRect(col.x + 5, drawY + 13, 3, 7);
+        ctx.fillRect(col.x + 8, drawY + 17, 3, 3);
+        ctx.fillRect(col.x + 11, drawY + 10, 3, 7);
+        ctx.fillRect(col.x + 14, drawY + 6, 3, 4);
+        
+        // Shine effect
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+        ctx.fillRect(col.x + 2, drawY + 2, 4, 4);
+        
+        ctx.restore();
+        
+        // Particles around collectible
+        if (frameCount % 10 === 0) {
+            const angle = Math.random() * Math.PI * 2;
+            const distance = 15;
+            const particleX = centerX + Math.cos(angle) * distance;
+            const particleY = centerY + Math.sin(angle) * distance;
+            
+            ctx.fillStyle = 'rgba(57, 211, 83, 0.6)';
+            ctx.fillRect(particleX, particleY, 2, 2);
+        }
     }
 
     checkCollision(player) {
@@ -817,22 +1159,100 @@ class PowerupManager {
         });
     }
 
-    draw(ctx) {
+    draw(ctx, frameCount) {
         this.powerups.forEach(pu => {
-            const drawY = pu.y + pu.floatOffset;
-            
-            // Glow effect
-            ctx.fillStyle = pu.color.replace(')', ', 0.3)').replace('rgb', 'rgba');
-            ctx.fillRect(pu.x - 4, drawY - 4, pu.width + 8, pu.height + 8);
-            
-            // Main box
-            ctx.fillStyle = pu.color;
-            ctx.fillRect(pu.x, drawY, pu.width, pu.height);
-            
-            // Icon (simplified)
-            ctx.fillStyle = '#0d1117';
-            ctx.fillRect(pu.x + 8, drawY + 8, 16, 16);
+            this.drawPowerup(ctx, pu, frameCount);
         });
+    }
+    
+    drawPowerup(ctx, pu, frameCount) {
+        const drawY = pu.y + pu.floatOffset;
+        const pulse = Math.sin(frameCount * 0.1) * 0.15 + 1;
+        
+        ctx.save();
+        
+        // Multi-layer glow
+        const glowIntensity = Math.sin(frameCount * 0.12) * 0.3 + 0.5;
+        
+        // Outer glow
+        ctx.fillStyle = pu.color.replace(')', `, ${glowIntensity * 0.2})`).replace('rgb', 'rgba');
+        ctx.fillRect(pu.x - 12, drawY - 12, pu.width + 24, pu.height + 24);
+        
+        // Middle glow
+        ctx.fillStyle = pu.color.replace(')', `, ${glowIntensity * 0.4})`).replace('rgb', 'rgba');
+        ctx.fillRect(pu.x - 6, drawY - 6, pu.width + 12, pu.height + 12);
+        
+        // Inner glow
+        ctx.fillStyle = pu.color.replace(')', ', 0.6)').replace('rgb', 'rgba');
+        ctx.fillRect(pu.x - 2, drawY - 2, pu.width + 4, pu.height + 4);
+        
+        // Rotate for visual interest
+        const rotation = frameCount * 0.03;
+        const centerX = pu.x + pu.width / 2;
+        const centerY = drawY + pu.height / 2;
+        
+        ctx.translate(centerX, centerY);
+        ctx.rotate(rotation);
+        ctx.scale(pulse, pulse);
+        ctx.translate(-centerX, -centerY);
+        
+        // Main box with gradient effect
+        ctx.fillStyle = pu.color;
+        ctx.fillRect(pu.x, drawY, pu.width, pu.height);
+        
+        // Highlight
+        const lighterColor = this.lightenColor(pu.color);
+        ctx.fillStyle = lighterColor;
+        ctx.fillRect(pu.x + 2, drawY + 2, pu.width - 4, 4);
+        ctx.fillRect(pu.x + 2, drawY + 2, 4, pu.height - 4);
+        
+        // Draw type-specific icon
+        ctx.fillStyle = '#0d1117';
+        
+        if (pu.type === 'invincibility') {
+            // Shield icon
+            ctx.fillRect(pu.x + 10, drawY + 6, 12, 14);
+            ctx.fillRect(pu.x + 8, drawY + 8, 16, 10);
+            ctx.fillRect(pu.x + 12, drawY + 10, 8, 8);
+            ctx.fillStyle = lighterColor;
+            ctx.fillRect(pu.x + 14, drawY + 12, 4, 4);
+        } else if (pu.type === 'slowmo') {
+            // Clock icon
+            ctx.fillRect(pu.x + 10, drawY + 8, 12, 12);
+            ctx.fillStyle = lighterColor;
+            ctx.fillRect(pu.x + 15, drawY + 10, 2, 6);
+            ctx.fillRect(pu.x + 15, drawY + 13, 4, 2);
+        } else if (pu.type === 'magnet') {
+            // Magnet icon
+            ctx.fillRect(pu.x + 8, drawY + 10, 4, 12);
+            ctx.fillRect(pu.x + 20, drawY + 10, 4, 12);
+            ctx.fillRect(pu.x + 8, drawY + 10, 16, 4);
+            ctx.fillStyle = lighterColor;
+            ctx.fillRect(pu.x + 10, drawY + 12, 2, 8);
+            ctx.fillRect(pu.x + 20, drawY + 12, 2, 8);
+        }
+        
+        ctx.restore();
+        
+        // Orbiting particles
+        const orbitAngle = frameCount * 0.1;
+        for (let i = 0; i < 3; i++) {
+            const angle = orbitAngle + (i * Math.PI * 2 / 3);
+            const orbitRadius = 20 + Math.sin(frameCount * 0.08 + i) * 3;
+            const particleX = centerX + Math.cos(angle) * orbitRadius;
+            const particleY = centerY + Math.sin(angle) * orbitRadius;
+            
+            ctx.fillStyle = pu.color;
+            ctx.fillRect(particleX - 2, particleY - 2, 3, 3);
+        }
+    }
+    
+    lightenColor(color) {
+        // Simple color lightening
+        if (color === '#bc8cff') return '#d4b0ff';
+        if (color === '#58a6ff') return '#7ec0ff';
+        if (color === '#f9826c') return '#ffa896';
+        return color;
     }
 
     checkCollision(player) {
@@ -890,10 +1310,20 @@ class ParticleSystem {
         this.particles = this.particles.filter(p => {
             p.x += p.vx;
             p.y += p.vy;
-            p.vy += 0.2; // gravity
+            
+            if (p.type !== 'trail') {
+                p.vy += p.gravity || 0.2;
+            }
+            
             p.life--;
             p.alpha = p.life / p.maxLife;
-            return p.life > 0;
+            
+            // Shrink particles over time
+            if (p.shrink) {
+                p.size *= 0.96;
+            }
+            
+            return p.life > 0 && p.size > 0.5;
         });
     }
 
@@ -901,8 +1331,22 @@ class ParticleSystem {
         this.particles.forEach(p => {
             this.ctx.save();
             this.ctx.globalAlpha = p.alpha;
+            
+            if (p.glow) {
+                this.ctx.shadowBlur = 10;
+                this.ctx.shadowColor = p.color;
+            }
+            
             this.ctx.fillStyle = p.color;
-            this.ctx.fillRect(p.x, p.y, p.size, p.size);
+            
+            if (p.shape === 'circle') {
+                this.ctx.beginPath();
+                this.ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                this.ctx.fill();
+            } else {
+                this.ctx.fillRect(p.x, p.y, p.size, p.size);
+            }
+            
             this.ctx.restore();
         });
     }
@@ -916,11 +1360,15 @@ class ParticleSystem {
                 y: y,
                 vx: Math.cos(angle) * speed,
                 vy: Math.sin(angle) * speed,
-                size: 4,
+                size: 3 + Math.random() * 2,
                 color: color,
                 life: 30,
                 maxLife: 30,
-                alpha: 1
+                alpha: 1,
+                gravity: 0.15,
+                glow: true,
+                shape: 'circle',
+                shrink: true
             });
         }
     }
@@ -930,13 +1378,79 @@ class ParticleSystem {
             this.particles.push({
                 x: x,
                 y: y,
-                vx: (Math.random() - 0.5) * 6,
-                vy: (Math.random() - 0.5) * 6,
-                size: 6,
+                vx: (Math.random() - 0.5) * 8,
+                vy: (Math.random() - 0.5) * 8,
+                size: 4 + Math.random() * 4,
                 color: color,
                 life: 40,
                 maxLife: 40,
-                alpha: 1
+                alpha: 1,
+                gravity: 0.25,
+                glow: true,
+                shape: Math.random() > 0.5 ? 'circle' : 'square',
+                shrink: true
+            });
+        }
+        
+        // Add shockwave ring
+        for (let i = 0; i < 12; i++) {
+            const angle = (Math.PI * 2 * i) / 12;
+            const speed = 5 + Math.random() * 2;
+            this.particles.push({
+                x: x,
+                y: y,
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed,
+                size: 2,
+                color: color,
+                life: 20,
+                maxLife: 20,
+                alpha: 1,
+                gravity: 0,
+                glow: true,
+                shape: 'circle',
+                shrink: true
+            });
+        }
+    }
+    
+    createTrail(x, y, color) {
+        this.particles.push({
+            x: x + Math.random() * 8 - 4,
+            y: y + Math.random() * 8 - 4,
+            vx: (Math.random() - 0.5) * 2,
+            vy: (Math.random() - 0.5) * 2,
+            size: 2 + Math.random() * 2,
+            color: color,
+            life: 15,
+            maxLife: 15,
+            alpha: 0.6,
+            gravity: 0.05,
+            glow: false,
+            shape: 'square',
+            shrink: true,
+            type: 'trail'
+        });
+    }
+    
+    createSparkle(x, y, color) {
+        for (let i = 0; i < 4; i++) {
+            const angle = (Math.PI * 2 * i) / 4;
+            const speed = 1 + Math.random();
+            this.particles.push({
+                x: x,
+                y: y,
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed,
+                size: 2,
+                color: color,
+                life: 25,
+                maxLife: 25,
+                alpha: 1,
+                gravity: 0,
+                glow: true,
+                shape: 'circle',
+                shrink: true
             });
         }
     }
@@ -948,48 +1462,144 @@ class Background {
     constructor(ctx) {
         this.ctx = ctx;
         this.elements = [];
+        this.stars = [];
+        this.gridLines = [];
         this.init();
     }
 
     init() {
-        const chars = ['{}', '()', '[]', '//', '/*', '*/', '<>', '==', '!=', '++', '--'];
+        // Code symbols (near layer)
+        const chars = ['{}', '()', '[]', '//', '/*', '*/', '<>', '==', '!=', '++', '--', 'fn', 'if', 'for'];
         for (let i = 0; i < 20; i++) {
             this.elements.push({
                 x: Math.random() * 900,
                 y: Math.random() * 400,
                 char: chars[Math.floor(Math.random() * chars.length)],
-                speed: 0.2 + Math.random() * 0.5,
-                opacity: 0.1 + Math.random() * 0.15
+                speed: 0.3 + Math.random() * 0.6,
+                opacity: 0.1 + Math.random() * 0.2,
+                size: 20 + Math.random() * 8
+            });
+        }
+        
+        // Far layer symbols (slower, dimmer)
+        for (let i = 0; i < 15; i++) {
+            this.elements.push({
+                x: Math.random() * 900,
+                y: Math.random() * 400,
+                char: chars[Math.floor(Math.random() * chars.length)],
+                speed: 0.1 + Math.random() * 0.2,
+                opacity: 0.05 + Math.random() * 0.1,
+                size: 16 + Math.random() * 6
+            });
+        }
+        
+        // Stars/pixels (background layer)
+        for (let i = 0; i < 50; i++) {
+            this.stars.push({
+                x: Math.random() * 900,
+                y: Math.random() * 400,
+                size: Math.random() * 2 + 1,
+                speed: 0.05 + Math.random() * 0.1,
+                opacity: 0.2 + Math.random() * 0.4,
+                twinkle: Math.random() * Math.PI * 2
+            });
+        }
+        
+        // Grid lines (perspective effect)
+        for (let i = 0; i < 10; i++) {
+            this.gridLines.push({
+                x: i * 100,
+                speed: 2,
+                opacity: 0.15
             });
         }
     }
 
     update(gameSpeed) {
+        // Update code elements
         this.elements.forEach(el => {
             el.x -= el.speed;
             if (el.x < -50) {
-                el.x = 900;
+                el.x = 900 + Math.random() * 100;
                 el.y = Math.random() * 400;
+            }
+        });
+        
+        // Update stars
+        this.stars.forEach(star => {
+            star.x -= star.speed;
+            if (star.x < -5) {
+                star.x = 900 + Math.random() * 50;
+                star.y = Math.random() * 400;
+            }
+            star.twinkle += 0.05;
+        });
+        
+        // Update grid
+        this.gridLines.forEach(line => {
+            line.x -= line.speed;
+            if (line.x < -10) {
+                line.x = 900;
             }
         });
     }
 
     draw() {
-        this.ctx.font = '24px VT323';
-        this.elements.forEach(el => {
+        // Draw stars (furthest layer)
+        this.stars.forEach(star => {
+            const twinkleOpacity = star.opacity * (0.5 + Math.sin(star.twinkle) * 0.5);
+            this.ctx.fillStyle = `rgba(88, 166, 255, ${twinkleOpacity})`;
+            this.ctx.fillRect(star.x, star.y, star.size, star.size);
+        });
+        
+        // Draw grid lines (perspective floor)
+        this.ctx.strokeStyle = 'rgba(57, 211, 83, 0.1)';
+        this.ctx.lineWidth = 1;
+        this.gridLines.forEach(line => {
+            this.ctx.beginPath();
+            this.ctx.moveTo(line.x, 420);
+            this.ctx.lineTo(line.x, 500);
+            this.ctx.stroke();
+        });
+        
+        // Draw code elements (sort by speed for layering)
+        const sorted = [...this.elements].sort((a, b) => a.speed - b.speed);
+        sorted.forEach(el => {
+            this.ctx.font = `${el.size}px VT323`;
             this.ctx.fillStyle = `rgba(57, 211, 83, ${el.opacity})`;
             this.ctx.fillText(el.char, el.x, el.y);
         });
         
-        // Draw ground
+        // Draw ground with gradient
+        const groundGradient = this.ctx.createLinearGradient(0, 410, 0, 416);
+        groundGradient.addColorStop(0, 'rgba(57, 211, 83, 0.4)');
+        groundGradient.addColorStop(1, 'rgba(57, 211, 83, 1)');
+        this.ctx.fillStyle = groundGradient;
+        this.ctx.fillRect(0, 410, 900, 6);
+        
+        // Main ground line
         this.ctx.fillStyle = '#39d353';
         this.ctx.fillRect(0, 412, 900, 4);
         
-        // Draw grid pattern
+        // Draw perspective grid on ground
         this.ctx.fillStyle = 'rgba(57, 211, 83, 0.2)';
         for (let i = 0; i < 900; i += 20) {
-            this.ctx.fillRect(i, 416, 2, 84);
+            const height = 84 - (i % 100) / 5; // Perspective effect
+            this.ctx.fillRect(i, 416, 2, height);
         }
+        
+        // Horizontal grid lines
+        for (let i = 420; i < 500; i += 15) {
+            this.ctx.fillStyle = `rgba(57, 211, 83, ${0.1 - (i - 420) / 800})`;
+            this.ctx.fillRect(0, i, 900, 1);
+        }
+        
+        // Subtle glow under ground
+        const glowGradient = this.ctx.createLinearGradient(0, 416, 0, 450);
+        glowGradient.addColorStop(0, 'rgba(57, 211, 83, 0.15)');
+        glowGradient.addColorStop(1, 'rgba(57, 211, 83, 0)');
+        this.ctx.fillStyle = glowGradient;
+        this.ctx.fillRect(0, 416, 900, 34);
     }
 }
 
