@@ -372,47 +372,58 @@ class GameEngine {
     playSound(type) {
         if (!this.settings.sound) return;
         
-        // Web Audio API sound generation
-        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        const oscillator = audioContext.createOscillator();
-        const gainNode = audioContext.createGain();
-        
-        oscillator.connect(gainNode);
-        gainNode.connect(audioContext.destination);
-        
-        switch(type) {
-            case 'jump':
-                oscillator.frequency.value = 400;
-                oscillator.type = 'square';
-                gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
-                oscillator.start(audioContext.currentTime);
-                oscillator.stop(audioContext.currentTime + 0.1);
-                break;
-            case 'collect':
-                oscillator.frequency.value = 800;
-                oscillator.type = 'sine';
-                gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.15);
-                oscillator.start(audioContext.currentTime);
-                oscillator.stop(audioContext.currentTime + 0.15);
-                break;
-            case 'hit':
-                oscillator.frequency.value = 100;
-                oscillator.type = 'sawtooth';
-                gainNode.gain.setValueAtTime(0.5, audioContext.currentTime);
-                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
-                oscillator.start(audioContext.currentTime);
-                oscillator.stop(audioContext.currentTime + 0.2);
-                break;
-            case 'powerup':
-                oscillator.frequency.value = 600;
-                oscillator.type = 'sine';
-                gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
-                oscillator.start(audioContext.currentTime);
-                oscillator.stop(audioContext.currentTime + 0.3);
-                break;
+        // Firefox Mobile requires user interaction before AudioContext
+        try {
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            switch(type) {
+                case 'jump':
+                    oscillator.frequency.value = 400;
+                    oscillator.type = 'square';
+                    gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
+                    oscillator.start(audioContext.currentTime);
+                    oscillator.stop(audioContext.currentTime + 0.1);
+                    break;
+                case 'collect':
+                    oscillator.frequency.value = 800;
+                    oscillator.type = 'sine';
+                    gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.15);
+                    oscillator.start(audioContext.currentTime);
+                    oscillator.stop(audioContext.currentTime + 0.15);
+                    break;
+                case 'hit':
+                    oscillator.frequency.value = 100;
+                    oscillator.type = 'sawtooth';
+                    gainNode.gain.setValueAtTime(0.5, audioContext.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
+                    oscillator.start(audioContext.currentTime);
+                    oscillator.stop(audioContext.currentTime + 0.2);
+                    break;
+                case 'powerup':
+                    oscillator.frequency.value = 600;
+                    oscillator.type = 'sine';
+                    gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+                    oscillator.start(audioContext.currentTime);
+                    oscillator.stop(audioContext.currentTime + 0.3);
+                    break;
+            }
+            
+            // Close context after sound plays to avoid memory leaks
+            setTimeout(() => {
+                audioContext.close();
+            }, 1000);
+            
+        } catch (error) {
+            // Silently fail if AudioContext is not available
+            console.warn('Audio not available:', error.message);
         }
     }
 
@@ -560,10 +571,10 @@ class GameEngine {
         // Swipe gesture detection on canvas
         this.canvas.addEventListener('touchstart', (e) => {
             if (this.state !== 'playing' || this.isPaused) return;
-            e.preventDefault();
             const touch = e.touches[0];
             this.touchControls.touchStartX = touch.clientX;
             this.touchControls.touchStartY = touch.clientY;
+            e.preventDefault();
         }, { passive: false });
         
         this.canvas.addEventListener('touchmove', (e) => {
@@ -573,13 +584,13 @@ class GameEngine {
         
         this.canvas.addEventListener('touchend', (e) => {
             if (this.state !== 'playing' || this.isPaused) return;
-            e.preventDefault();
             
             const touch = e.changedTouches[0];
             this.touchControls.touchEndX = touch.clientX;
             this.touchControls.touchEndY = touch.clientY;
             
             this.handleSwipeGesture();
+            e.preventDefault();
         }, { passive: false });
         
         // Show instructions on first mobile visit

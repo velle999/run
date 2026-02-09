@@ -31,6 +31,14 @@ body {
         radial-gradient(circle at 20% 50%, rgba(57, 211, 83, 0.08) 0%, transparent 50%),
         radial-gradient(circle at 80% 80%, rgba(88, 166, 255, 0.08) 0%, transparent 50%),
         repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(57, 211, 83, 0.02) 2px, rgba(57, 211, 83, 0.02) 4px);
+    /* Firefox Mobile fixes */
+    position: fixed;
+    width: 100%;
+    height: 100%;
+    -moz-user-select: none;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
 }
 
 #gameContainer {
@@ -52,6 +60,9 @@ body {
     image-rendering: pixelated;
     image-rendering: crisp-edges;
     transition: transform 0.1s ease-out;
+    /* Firefox Mobile touch fixes */
+    touch-action: none;
+    -ms-touch-action: none;
 }
 
 .scanline {
@@ -822,6 +833,11 @@ button {
     cursor: pointer;
     user-select: none;
     -webkit-tap-highlight-color: transparent;
+    /* Firefox Mobile touch fixes */
+    touch-action: manipulation;
+    -ms-touch-action: manipulation;
+    -moz-user-select: none;
+    -webkit-user-select: none;
 }
 
 .touch-button:active {
