@@ -8,13 +8,31 @@ class GameEngine {
         this.frameCount = 0;
         this.isPaused = false;
         
+        // Mobile detection
+        this.isMobile = this.detectMobile();
+        this.touchControls = {
+            touchStartX: 0,
+            touchStartY: 0,
+            touchEndX: 0,
+            touchEndY: 0,
+            minSwipeDistance: 50
+        };
+        
         this.settings = this.loadSettings();
         this.stats = this.loadStats();
         this.achievements = new AchievementManager();
         
         this.initializeEntities();
         this.initializeEventListeners();
+        this.initializeMobileControls();
         this.gameLoop();
+    }
+    
+    detectMobile() {
+        const userAgent = navigator.userAgent || navigator.vendor || window.opera;
+        const isMobileDevice = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent.toLowerCase());
+        const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+        return isMobileDevice || isTouchDevice;
     }
 
     initializeEntities() {
@@ -82,6 +100,7 @@ class GameEngine {
         this.resetGame();
         this.state = 'playing';
         this.hideAllScreens();
+        this.showMobileControls();
         this.playSound('start');
     }
 
@@ -100,6 +119,7 @@ class GameEngine {
     gameOver() {
         this.state = 'gameOver';
         this.playSound('gameOver');
+        this.hideMobileControls();
         
         // Update high score
         if (this.stats.score > this.stats.highScore) {
@@ -494,6 +514,133 @@ class GameEngine {
                 alert('Progress reset successfully!');
             }
         });
+    }
+    
+    initializeMobileControls() {
+        if (!this.isMobile) return;
+        
+        // Show mobile controls and touch zones during gameplay
+        const mobileControls = document.getElementById('mobileControls');
+        const touchZones = document.getElementById('touchZones');
+        
+        // Touch button controls
+        const jumpBtn = document.getElementById('jumpBtn');
+        const slideBtn = document.getElementById('slideBtn');
+        
+        // Prevent default touch behaviors
+        [jumpBtn, slideBtn].forEach(btn => {
+            btn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+            });
+        });
+        
+        // Jump button
+        jumpBtn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            if (this.state === 'playing' && !this.isPaused && !this.player.jumping && !this.player.sliding) {
+                this.player.jump();
+                this.playSound('jump');
+                this.triggerVibration(50);
+                jumpBtn.classList.add('vibration-pulse');
+                setTimeout(() => jumpBtn.classList.remove('vibration-pulse'), 300);
+            }
+        });
+        
+        // Slide button
+        slideBtn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            if (this.state === 'playing' && !this.isPaused && !this.player.jumping && !this.player.sliding) {
+                this.player.slide();
+                this.triggerVibration(50);
+                slideBtn.classList.add('vibration-pulse');
+                setTimeout(() => slideBtn.classList.remove('vibration-pulse'), 300);
+            }
+        });
+        
+        // Swipe gesture detection on canvas
+        this.canvas.addEventListener('touchstart', (e) => {
+            if (this.state !== 'playing' || this.isPaused) return;
+            e.preventDefault();
+            const touch = e.touches[0];
+            this.touchControls.touchStartX = touch.clientX;
+            this.touchControls.touchStartY = touch.clientY;
+        }, { passive: false });
+        
+        this.canvas.addEventListener('touchmove', (e) => {
+            if (this.state !== 'playing' || this.isPaused) return;
+            e.preventDefault();
+        }, { passive: false });
+        
+        this.canvas.addEventListener('touchend', (e) => {
+            if (this.state !== 'playing' || this.isPaused) return;
+            e.preventDefault();
+            
+            const touch = e.changedTouches[0];
+            this.touchControls.touchEndX = touch.clientX;
+            this.touchControls.touchEndY = touch.clientY;
+            
+            this.handleSwipeGesture();
+        }, { passive: false });
+        
+        // Show instructions on first mobile visit
+        if (!localStorage.getItem('commitStreakMobileInstructionsSeen')) {
+            this.showMobileInstructions();
+        }
+    }
+    
+    handleSwipeGesture() {
+        const deltaX = this.touchControls.touchEndX - this.touchControls.touchStartX;
+        const deltaY = this.touchControls.touchEndY - this.touchControls.touchStartY;
+        const minDistance = this.touchControls.minSwipeDistance;
+        
+        // Determine if swipe is more vertical or horizontal
+        if (Math.abs(deltaY) > Math.abs(deltaX)) {
+            // Vertical swipe
+            if (Math.abs(deltaY) > minDistance) {
+                if (deltaY < 0) {
+                    // Swipe up - Jump
+                    if (!this.player.jumping && !this.player.sliding) {
+                        this.player.jump();
+                        this.playSound('jump');
+                        this.triggerVibration(50);
+                    }
+                } else {
+                    // Swipe down - Slide
+                    if (!this.player.jumping && !this.player.sliding) {
+                        this.player.slide();
+                        this.triggerVibration(50);
+                    }
+                }
+            }
+        }
+    }
+    
+    triggerVibration(duration) {
+        if ('vibrate' in navigator && this.settings.screenShake) {
+            navigator.vibrate(duration);
+        }
+    }
+    
+    showMobileInstructions() {
+        const instructionsOverlay = document.getElementById('mobileInstructions');
+        instructionsOverlay.classList.remove('hidden');
+        
+        document.getElementById('closeInstructionsBtn').addEventListener('click', () => {
+            instructionsOverlay.classList.add('hidden');
+            localStorage.setItem('commitStreakMobileInstructionsSeen', 'true');
+        });
+    }
+    
+    showMobileControls() {
+        if (this.isMobile) {
+            document.getElementById('mobileControls').classList.remove('hidden');
+        }
+    }
+    
+    hideMobileControls() {
+        if (this.isMobile) {
+            document.getElementById('mobileControls').classList.add('hidden');
+        }
     }
 
     updateSettingsUI() {

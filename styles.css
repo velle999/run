@@ -785,3 +785,282 @@ button {
 .achievements-grid::-webkit-scrollbar-thumb:hover {
     background: #4ae168;
 }
+
+/* Mobile Touch Controls */
+.mobile-controls {
+    position: absolute;
+    bottom: 40px;
+    left: 0;
+    right: 0;
+    display: flex;
+    justify-content: space-between;
+    padding: 0 30px;
+    z-index: 50;
+    pointer-events: none;
+}
+
+.mobile-controls.hidden {
+    display: none;
+}
+
+.touch-button {
+    pointer-events: auto;
+    width: 80px;
+    height: 80px;
+    background: rgba(13, 17, 23, 0.9);
+    border: 3px solid var(--terminal-green);
+    border-radius: 50%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    box-shadow: 
+        0 0 20px rgba(57, 211, 83, 0.4),
+        inset 0 0 20px rgba(57, 211, 83, 0.1);
+    transition: all 0.1s;
+    cursor: pointer;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.touch-button:active {
+    transform: scale(0.9);
+    background: var(--terminal-green);
+    box-shadow: 
+        0 0 30px rgba(57, 211, 83, 0.8),
+        inset 0 0 30px rgba(57, 211, 83, 0.3);
+}
+
+.touch-button:active .button-icon,
+.touch-button:active .button-label {
+    color: var(--bg-darker);
+}
+
+.button-icon {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 24px;
+    color: var(--terminal-green);
+    text-shadow: 0 0 10px rgba(57, 211, 83, 1);
+}
+
+.button-label {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 8px;
+    color: var(--terminal-green);
+    letter-spacing: 1px;
+}
+
+.jump-button {
+    margin-right: auto;
+}
+
+.slide-button {
+    margin-left: auto;
+}
+
+/* Touch Gesture Zones */
+.touch-zones {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 40;
+    pointer-events: none;
+}
+
+.touch-zones.hidden {
+    display: none;
+}
+
+.touch-zone-left,
+.touch-zone-right {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 50%;
+    pointer-events: auto;
+}
+
+.touch-zone-left {
+    left: 0;
+}
+
+.touch-zone-right {
+    right: 0;
+}
+
+/* Mobile Instructions */
+.mobile-instructions {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(1, 4, 9, 0.95);
+    backdrop-filter: blur(10px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 150;
+    animation: fadeIn 0.3s ease-out;
+}
+
+.mobile-instructions.hidden {
+    display: none;
+}
+
+.instruction-content {
+    text-align: center;
+    padding: 40px;
+    max-width: 500px;
+}
+
+.instruction-content h3 {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 24px;
+    color: var(--terminal-green);
+    margin-bottom: 30px;
+    text-shadow: 0 0 20px rgba(57, 211, 83, 1);
+}
+
+.instruction-methods {
+    display: flex;
+    gap: 30px;
+    margin: 30px 0;
+    justify-content: center;
+}
+
+.method {
+    flex: 1;
+    background: var(--bg-card);
+    padding: 20px;
+    border: 3px solid var(--terminal-green);
+    box-shadow: 0 0 20px rgba(57, 211, 83, 0.3);
+}
+
+.method-title {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 12px;
+    color: var(--github-blue);
+    margin-bottom: 15px;
+    text-shadow: 0 0 10px rgba(88, 166, 255, 1);
+}
+
+.method p {
+    font-family: 'VT323', monospace;
+    font-size: 18px;
+    color: var(--text-gray);
+    margin: 10px 0;
+}
+
+/* Vibration Feedback Indicator */
+.vibration-pulse {
+    animation: vibrationPulse 0.3s ease-out;
+}
+
+@keyframes vibrationPulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+}
+
+/* Mobile-specific adjustments */
+@media (max-width: 768px) {
+    .mobile-controls {
+        display: flex;
+    }
+
+    #ui {
+        top: 15px;
+        left: 15px;
+        right: 15px;
+        gap: 8px;
+    }
+
+    .ui-panel {
+        padding: 8px 12px;
+    }
+
+    .stat .label {
+        font-size: 8px;
+    }
+
+    .stat .value {
+        font-size: 14px;
+    }
+
+    #lives {
+        top: 15px;
+    }
+
+    .life {
+        font-size: 20px;
+    }
+
+    #powerupIndicator {
+        top: 80px;
+        right: 15px;
+        padding: 10px;
+    }
+
+    #comboIndicator {
+        top: 80px;
+        left: 15px;
+        padding: 10px 15px;
+    }
+
+    .combo-value {
+        font-size: 20px;
+    }
+
+    .instruction-methods {
+        flex-direction: column;
+        gap: 20px;
+    }
+}
+
+/* Landscape mobile optimization */
+@media (max-width: 896px) and (orientation: landscape) {
+    .mobile-controls {
+        bottom: 20px;
+        padding: 0 20px;
+    }
+
+    .touch-button {
+        width: 60px;
+        height: 60px;
+    }
+
+    .button-icon {
+        font-size: 20px;
+    }
+
+    .button-label {
+        font-size: 6px;
+    }
+
+    #ui {
+        top: 10px;
+        left: 10px;
+        right: 10px;
+    }
+
+    #lives {
+        top: 10px;
+    }
+}
+
+/* Touch-friendly button sizing */
+@media (hover: none) and (pointer: coarse) {
+    button {
+        min-height: 44px;
+        min-width: 44px;
+    }
+
+    .btn-primary,
+    .btn-secondary {
+        padding: 18px 35px;
+        font-size: 12px;
+    }
+}

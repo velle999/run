@@ -188,6 +188,44 @@
                 <button id="quitBtn" class="btn-secondary">QUIT TO MENU</button>
             </div>
         </div>
+
+        <!-- Mobile Touch Controls -->
+        <div id="mobileControls" class="mobile-controls hidden">
+            <button id="jumpBtn" class="touch-button jump-button">
+                <span class="button-icon">↑</span>
+                <span class="button-label">JUMP</span>
+            </button>
+            <button id="slideBtn" class="touch-button slide-button">
+                <span class="button-icon">↓</span>
+                <span class="button-label">SLIDE</span>
+            </button>
+        </div>
+
+        <!-- Touch Gesture Zones (invisible) -->
+        <div id="touchZones" class="touch-zones hidden">
+            <div id="touchZoneLeft" class="touch-zone-left"></div>
+            <div id="touchZoneRight" class="touch-zone-right"></div>
+        </div>
+
+        <!-- Mobile Instructions Overlay -->
+        <div id="mobileInstructions" class="mobile-instructions hidden">
+            <div class="instruction-content">
+                <h3>TOUCH CONTROLS</h3>
+                <div class="instruction-methods">
+                    <div class="method">
+                        <div class="method-title">BUTTONS</div>
+                        <p>Tap ↑ to JUMP</p>
+                        <p>Tap ↓ to SLIDE</p>
+                    </div>
+                    <div class="method">
+                        <div class="method-title">SWIPE</div>
+                        <p>Swipe UP to JUMP</p>
+                        <p>Swipe DOWN to SLIDE</p>
+                    </div>
+                </div>
+                <button id="closeInstructionsBtn" class="btn-primary">GOT IT!</button>
+            </div>
+        </div>
     </div>
 
     <script src="game.js"></script>
